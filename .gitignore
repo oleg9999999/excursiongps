@@ -1,0 +1,11 @@
+# Игнорируем всё по умолчанию
+*
+
+# Но включаем важные файлы:
+!main.py
+!requirements.txt
+!gps.svg
+!workdatabase.py
+
+# и сам .gitignore не игнорируем
+!.gitignore

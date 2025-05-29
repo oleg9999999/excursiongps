@@ -1,0 +1,6 @@
+streamlit
+folium
+geocoder
+streamlit-folium
+jinja2
+supabase
