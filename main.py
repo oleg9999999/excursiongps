@@ -7,6 +7,12 @@
 
 # EExckQATDg2WORhM
 
+# КОМАНДЫ В ТЕРМИНАЛ, ЧТОБЫ ОБНОВИТЬ ФАЙЛЫ ПРОЕКТА
+# git status
+# git add .
+# git commit -m "СДЕЛАЛ ИЗМЕНЕНИЕ"
+# git push
+
 
 
 # Основное
@@ -107,18 +113,31 @@ folium.Marker(location=user_latlon,
 
 m.get_root().html.add_child(folium.Element("""
 <style>
-/* Вырубаем фильтр И анимацию у любых <img> внутри карты */
+/* Вырубаем фильтр и анимацию у любых <img> внутри карты */
 html[data-theme="dark"] .leaflet-container img {
     filter: none !important;
     transition: none !important;
 }
+/* Убираем копирайт Leaflet */
+.leaflet-control-attribution {
+    display: none !important;
+}
 </style>
+
+<script>
+navigator.geolocation.getCurrentPosition(function(pos) {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    // Панорамируем карту
+    map.setView([lat, lon], 15);
+
+    // Добавим маркер
+    L.marker([lat, lon]).addTo(map).bindPopup("Вы здесь").openPopup();
+});
+</script>
 """))
 
-# ── Убираем копирайт Leaflet ─────────────────────
-m.get_root().html.add_child(folium.Element(
-    "<style>.leaflet-control-attribution{display:none!important}</style>"
-))
 
 # ── Показываем карту ─────────────────────────────
 st_folium(m,
