@@ -7,44 +7,84 @@ supabase: Client = create_client(url, key)
 
 def add_training_data():
 
+    # 1. Вставка маршрутов
     routes_data = [
         {
-            "description": "Маршрут 1",
-            "user_ip": "192.168.1.100",
-            "start_lat": 55.75,
-            "start_lon": 37.61,
-            "end_lat": 55.76,
-            "end_lon": 37.62
+            "name": "Маршрут у Красной площади",
+            "description": "Пешая прогулка по историческому центру",
+            "user_ip": "192.168.0.1"
         },
         {
-            "description": "Маршрут 2",
-            "user_ip": "192.168.1.101",
-            "start_lat": 55.77,
-            "start_lon": 37.63,
-            "end_lat": 55.78,
-            "end_lon": 37.64
+            "name": "Без описания",
+            "description": "",
+            "user_ip": "192.168.0.2"
         },
         {
-            "description": "Маршрут 3",
-            "user_ip": "192.168.1.102",
-            "start_lat": 55.79,
-            "start_lon": 37.65,
-            "end_lat": 55.80,
-            "end_lon": 37.66
-        }
+            "name": "Переход через парк Зарядье",
+            "description": "Маршрут через смотровую площадку и мост",
+            "user_ip": "192.168.0.3"
+        },
     ]
+
     try:
         response = supabase.table("routes").insert(routes_data).execute()
         inserted_routes = response.data
         print("✅ Маршруты добавлены")
     except Exception as e:
-        msg = str(e)
-        if "duplicate key" in msg or "violates unique constraint" in msg:
-            print("⚠️ Маршруты уже добавлены")
-            return
+        print("⚠️ Ошибка при добавлении маршрутов:", str(e))
+        exit()
+
+    for idx, route in enumerate(inserted_routes):
+        route_id = route["id_route"]
+
+        if idx == 0:
+            start = {"route_id": route_id, "point_type": "start", "lat": 55.753930, "lon": 37.620795,
+                     "description": "Начало маршрута на Красной площади"}
+            end = {"route_id": route_id, "point_type": "final", "lat": 55.752023, "lon": 37.617499, "description": ""}
+        elif idx == 1:
+            start = {"route_id": route_id, "point_type": "start", "lat": 55.760186, "lon": 37.618711, "description": ""}
+            end = {"route_id": route_id, "point_type": "final", "lat": 55.759001, "lon": 37.621951,
+                   "description": "Финиш у Манежной площади"}
         else:
-            print("⚠️ Ошибка при добавлении маршрутов:", msg)
-            return
+            start = {"route_id": route_id, "point_type": "start", "lat": 55.750226, "lon": 37.627186,
+                     "description": "Вход в парк Зарядье"}
+            end = {"route_id": route_id, "point_type": "final", "lat": 55.748710, "lon": 37.629833, "description": ""}
+
+        try:
+            point_start = supabase.table("route_points").insert(start).execute().data[0]
+            point_end = supabase.table("route_points").insert(end).execute().data[0]
+
+            supabase.table("routes").update({
+                "point_id_start": point_start["id_point"],
+                "point_id_end": point_end["id_point"]
+            }).eq("id_route", route_id).execute()
+
+            # Добавление промежуточных точек (только в первых 2 маршрутах)
+            if idx < 2:
+                lat1, lon1 = start["lat"], start["lon"]
+                lat2, lon2 = end["lat"], end["lon"]
+                n = 8  # число точек
+
+                for i in range(1, n + 1):
+                    frac = i / (n + 1)
+                    lat = lat1 + (lat2 - lat1) * frac
+                    lon = lon1 + (lon2 - lon1) * frac
+
+                    desc = ""  # нечётная точка — без описания
+                    if i % 2 == 0:
+                        desc = f"Описание точки {i} АААААААААААААА ЧТО ЧТО? ЗДЕСЬ ОГРОМНЫЙ СЛОН ЗДЕСЬ ОГРОМНЫЙ СЛОН"
+
+                    supabase.table("route_points").insert({
+                        "route_id": route_id,
+                        "point_type": "route",
+                        "lat": lat,
+                        "lon": lon,
+                        "description": desc
+                    }).execute()
+
+            print(f"✅ Точки маршрута {route_id} добавлены")
+        except Exception as e:
+            print(f"⚠️ Ошибка при вставке точек маршрута {route_id}: {e}")
 
     complaints_data = [
         {"user_ip": "192.168.1.100", "route_id": inserted_routes[0]["id_route"], "message": "Тестовая жалоба 1"},
@@ -84,8 +124,15 @@ def delete_training_data():
     for i in range(1, 6):
         supabase.table("blacklist").delete().eq("user_ip", f"192.168.100.{i}").execute()
 
+    # Удаление маршрутов с описаниями "Маршрут 1", "Маршрут 2", "Маршрут 3"
     for i in range(1, 4):
         supabase.table("routes").delete().eq("description", f"Маршрут {i}").execute()
+
+    # Удаление маршрутов, добавленных вручную с IP 192.168.0.2
+    supabase.table("routes").delete().eq("user_ip", "192.168.0.2").execute()
+
+
+
 
     print("🗑 Тренировочные данные удалены")
 
