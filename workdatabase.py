@@ -72,7 +72,7 @@ def add_training_data():
 
                     desc = ""  # нечётная точка — без описания
                     if i % 2 == 0:
-                        desc = f"Описание точки {i} АААААААААААААА ЧТО ЧТО? ЗДЕСЬ ОГРОМНЫЙ СЛОН ЗДЕСЬ ОГРОМНЫЙ СЛОН"
+                        desc = f"Описание точки {i}"
 
                     supabase.table("route_points").insert({
                         "route_id": route_id,

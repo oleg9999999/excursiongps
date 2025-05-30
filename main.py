@@ -21,6 +21,7 @@ from streamlit_folium import st_folium
 from branca.element import Element
 from folium.plugins import LocateControl
 from datetime import datetime
+from streamlit_javascript import st_javascript
 
 # Supabase
 from supabase import create_client, Client
@@ -112,6 +113,21 @@ defaults = {
 }
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
+
+# ── Получаем IP клиента в браузере ─────────────────────────
+if "client_ip" not in st.session_state:
+    # Первый рендер вернёт None, после выполнения JS произойдёт
+    # автоматический rerun и IP будет сохранён в session_state
+    st.session_state["client_ip"] = st_javascript(
+        """
+        async () => {
+            const res  = await fetch('https://api.ipify.org?format=json');
+            const data = await res.json();
+            return data.ip;          // попадёт обратно в Python
+        }
+        """,
+        key="get_ip"                # уникальный ключ компонента
+    )
 
 # ── Панель поиска ID маршрута ─────────────────────────────
 with st.container():
@@ -244,7 +260,7 @@ with col_complain:
 # ── Модалка «Создать маршрут» (Свободный режим) ───────────
 if st.session_state["show_modal"]:
     st.markdown('<p style="font-size:1.6rem;font-weight:700;">'
-                '🗘 Свободный режим на карте</p>', unsafe_allow_html=True)
+                '🗘 Добавление карты</p>', unsafe_allow_html=True)
 
     modal_map = folium.Map(location=[55.75, 37.61],
                            zoom_start=14, width="100%", height=500)
@@ -310,7 +326,7 @@ if st.session_state.get("show_complain") and st.session_state.get("last_route_id
         if st.button("Отправить", key="submit_complaint"):
             if msg and msg.strip():
                 try:
-                    ip = geocoder.ip("me").ip or "unknown"
+                    ip = st.session_state.get("client_ip") or "unknown"
                     supabase.table("complaints").insert({
                         "route_id": st.session_state["last_route_id"],
                         "message":  msg.strip(),
