@@ -15,7 +15,6 @@
 # git push
 
 import streamlit as st
-import geocoder
 import folium
 from streamlit_folium import st_folium
 from branca.element import Element
@@ -45,9 +44,8 @@ def save_route() -> None:
                     "lat": 0.0, "lon": 0.0, "description": "reserved"
                 }).execute()
 
-        ip  = geocoder.ip("me").ip or "unknown"
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+        ip = st.session_state.get("client_ip") or "unknown"
         res = supabase.table("routes").insert({
             "name":        st.session_state["route_name"].strip(),
             "description": st.session_state["route_description"].strip(),
