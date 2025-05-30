@@ -20,6 +20,7 @@ from streamlit_folium import st_folium
 from branca.element import Element
 from folium.plugins import LocateControl
 from datetime import datetime
+import geocoder
 from streamlit_javascript import st_javascript
 
 # Supabase
@@ -44,8 +45,9 @@ def save_route() -> None:
                     "lat": 0.0, "lon": 0.0, "description": "reserved"
                 }).execute()
 
+        ip  = geocoder.ip("me").ip or "unknown"
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ip = st.session_state.get("client_ip") or "unknown"
+
         res = supabase.table("routes").insert({
             "name":        st.session_state["route_name"].strip(),
             "description": st.session_state["route_description"].strip(),
@@ -111,34 +113,6 @@ defaults = {
 }
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
-
-# ── Получаем IP клиента ───────────────────────────────────
-if "client_ip" not in st.session_state:
-    st.session_state["client_ip"] = None          # ключ заводим один раз
-
-if st.session_state["client_ip"] is None:
-    # компонент сразу вернёт None, но JS выполнится после рендера
-    ip_from_js = st_javascript(
-        """
-        async () => {
-            try {
-                const r   = await fetch('https://api64.ipify.org?format=json');
-                const obj = await r.json();
-                return obj.ip;          // браузер → Python
-            } catch (e) {
-                return null;            // на случай блокировок
-            }
-        }
-        """,
-        key="get_ip"
-    )
-
-    if ip_from_js:                      # значение пришло — запоминаем
-        st.session_state["client_ip"] = ip_from_js
-    else:
-        st.info("Определяю ваш IP-адрес …")      # просто сообщение, БЕЗ st.stop()
-
-st.write("Ваш IP:", st.session_state["client_ip"])
 
 # ── Панель поиска ID маршрута ─────────────────────────────
 with st.container():
@@ -337,7 +311,7 @@ if st.session_state.get("show_complain") and st.session_state.get("last_route_id
         if st.button("Отправить", key="submit_complaint"):
             if msg and msg.strip():
                 try:
-                    ip = st.session_state.get("client_ip") or "unknown"
+                    ip = geocoder.ip("me").ip or "unknown"
                     supabase.table("complaints").insert({
                         "route_id": st.session_state["last_route_id"],
                         "message":  msg.strip(),
