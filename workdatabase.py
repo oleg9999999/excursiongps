@@ -275,6 +275,28 @@ def remove_route_by_id():
     except Exception as e:
         print("⚠️ Ошибка при удалении маршрута:", str(e))
 
+def print_all_data():
+    tables = ["routes", "route_points", "complaints", "blacklist"]
+    empty_tables = []
+
+    for table in tables:
+        try:
+            result = supabase.table(table).select("*").execute()
+            data = result.data
+            print(f"\n📄 Содержимое таблицы '{table}':")
+
+            if not data:
+                print("   (ПУСТО)")
+                empty_tables.append(table)
+            else:
+                for row in data:
+                    print("  ", row)
+        except Exception as e:
+            print(f"⚠️ Ошибка при чтении из таблицы {table}: {e}")
+
+    if len(empty_tables) == len(tables):
+        print("\n🤷 Все таблицы пусты")
+
 
 # Меню
 print("\n👑 ДОБРО ПОЖАЛОВАТЬ В ПАНЕЛЬ АДМИНИСТРАТОРА 👑")
@@ -287,7 +309,8 @@ while True:
     print("5. Удалить маршрут")
     print("6. Добавить пользователя в чёрный список")
     print("7. Удалить пользователя из чёрного списка")
-    print("8. Выйти из главного меню")
+    print("8. Показать все данные из таблиц")
+    print("9. Выйти из главного меню")
 
     choice = input("→ Ваш выбор: ")
 
@@ -306,6 +329,8 @@ while True:
     elif choice == "7":
         remove_ip_from_blacklist()
     elif choice == "8":
+        print_all_data()
+    elif choice == "9":
         print("\n🔚 Завершение работы")
         break
     else:
