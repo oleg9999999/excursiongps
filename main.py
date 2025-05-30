@@ -114,26 +114,29 @@ for k, v in defaults.items():
 
 # ── Получаем IP клиента ───────────────────────────────────
 if "client_ip" not in st.session_state:
-    st.session_state["client_ip"] = None     # заведём ключ заранее
+    st.session_state["client_ip"] = None          # ключ заводим один раз
 
 if st.session_state["client_ip"] is None:
-    st.session_state["client_ip"] = st_javascript(
+    # компонент сразу вернёт None, но JS выполнится после рендера
+    ip_from_js = st_javascript(
         """
         async () => {
             try {
-                const res  = await fetch('https://api.ipify.org?format=json');
-                const data = await res.json();
-                return data.ip;              // отдадим Python-части
-            } catch(e) {
-                return "fetch_error";        // на случай блокировок
+                const r   = await fetch('https://api64.ipify.org?format=json');
+                const obj = await r.json();
+                return obj.ip;          // браузер → Python
+            } catch (e) {
+                return null;            // на случай блокировок
             }
         }
         """,
         key="get_ip"
     )
-    # пока значение ещё None – покажем сообщение и остановим
-    st.info("Определяю ваш IP-адрес…")
-    st.stop()
+
+    if ip_from_js:                      # значение пришло — запоминаем
+        st.session_state["client_ip"] = ip_from_js
+    else:
+        st.info("Определяю ваш IP-адрес …")      # просто сообщение, БЕЗ st.stop()
 
 st.write("Ваш IP:", st.session_state["client_ip"])
 
