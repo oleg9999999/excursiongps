@@ -112,20 +112,30 @@ defaults = {
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
-# ── Получаем IP клиента в браузере ─────────────────────────
+# ── Получаем IP клиента ───────────────────────────────────
 if "client_ip" not in st.session_state:
-    # Первый рендер вернёт None, после выполнения JS произойдёт
-    # автоматический rerun и IP будет сохранён в session_state
+    st.session_state["client_ip"] = None     # заведём ключ заранее
+
+if st.session_state["client_ip"] is None:
     st.session_state["client_ip"] = st_javascript(
         """
         async () => {
-            const res  = await fetch('https://api.ipify.org?format=json');
-            const data = await res.json();
-            return data.ip;          // попадёт обратно в Python
+            try {
+                const res  = await fetch('https://api.ipify.org?format=json');
+                const data = await res.json();
+                return data.ip;              // отдадим Python-части
+            } catch(e) {
+                return "fetch_error";        // на случай блокировок
+            }
         }
         """,
-        key="get_ip"                # уникальный ключ компонента
+        key="get_ip"
     )
+    # пока значение ещё None – покажем сообщение и остановим
+    st.info("Определяю ваш IP-адрес…")
+    st.stop()
+
+st.write("Ваш IP:", st.session_state["client_ip"])
 
 # ── Панель поиска ID маршрута ─────────────────────────────
 with st.container():
