@@ -21,6 +21,8 @@ from branca.element import Element
 from folium.plugins import LocateControl
 from datetime import datetime
 import geocoder
+import ipaddress
+
 
 # Supabase
 from supabase import create_client, Client
@@ -29,6 +31,66 @@ from supabase import create_client, Client
 url = "https://wqtpemsaxmanzxmdwhhp.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxdHBlbXNheG1hbnp4bWR3aGhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0NTM2OTIsImV4cCI6MjA2NDAyOTY5Mn0.2pPOuHHX2XN0jXQtCTkoJsJ08qjZVJmDafEImZZvZ-k"
 supabase: Client = create_client(url, key)
+
+
+
+# ── 1. Получаем список IP/подсетей из таблицы blacklist ─────────────────────────
+def load_blacklist() -> set[str]:
+    """
+    Возвращает множество записей из столбца user_ip:
+    • поддерживает как одиночные IP («192.168.100.1»),
+    • так и диапазоны в нотации CIDR («192.168.100.0/24»).
+    """
+    try:
+        res = supabase.table("blacklist").select("user_ip").execute()
+        return {row["user_ip"].strip() for row in res.data or []}
+    except Exception as e:
+        # если не удалось прочитать таблицу — лучше пустой блэклист,
+        # чем заблокировать всех пользователей
+        print(f"[warn] can't load blacklist: {e}")
+        return set()
+
+BLACKLIST = load_blacklist()
+
+# ── 2. Проверяем IP клиента ─────────────────────────────────────────────────────
+def client_ip() -> str | None:
+    """
+    Ваше текущее решение через geocoder остаётся рабочим,
+    если приложение развёрнуто на машине-одиночке.
+    Для продакшена на Streamlit Cloud / Render / Vercel
+    понадобится передавать IP из JavaScript (fetch https://api.ipify.org)
+    и класть его в st.session_state — по желанию.
+    """
+    return geocoder.ip("me").ip
+
+def is_blocked(ip: str | None) -> bool:
+    if not ip:
+        return False   # пустые/неопределённые адреса пропускаем
+    for banned in BLACKLIST:
+        if "/" in banned:                   # CIDR-диапазон
+            try:
+                if ipaddress.ip_address(ip) in ipaddress.ip_network(banned, strict=False):
+                    return True
+            except ValueError:
+                pass                         # некорректная запись в БД — игнорируем
+        elif ip == banned:                   # точное совпадение
+            return True
+    return False
+
+# ── 3. Если адрес в блэклисте — мгновенно останавливаем приложение ──────────────
+if is_blocked(client_ip()):
+    st.markdown("""
+        <h2 style="color:#ff4d4f;text-align:center;margin-top:4rem;">
+            🚫 Доступ запрещён
+        </h2>
+        <p style="text-align:center;">
+            Ваш IP-адрес заблокирован администратором
+        </p>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+
+
 
 # ── Функция сохранения маршрута (для «Свободного режима») ────────────────────────
 def save_route() -> None:
@@ -142,7 +204,7 @@ with st.container():
     )
 
     # карта-заглушка, если маршрут ещё не выбран
-    m = folium.Map(location=[0, 0], zoom_start=2, width="100%", height=500)
+    m = folium.Map(location=[46.3381433785881, 48.0677175521851], zoom_start=2, width="100%", height=500)
 
     # ── Поиск маршрута ────────────────────────────────────
     rid = st.session_state.get("route_id", "").strip()
