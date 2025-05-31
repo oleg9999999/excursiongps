@@ -21,7 +21,6 @@ from branca.element import Element
 from folium.plugins import LocateControl
 from datetime import datetime
 import geocoder
-from streamlit_javascript import st_javascript
 
 # Supabase
 from supabase import create_client, Client
@@ -35,24 +34,14 @@ supabase: Client = create_client(url, key)
 def save_route() -> None:
     """Сохраняет новый маршрут из st.session_state.free_points."""
     try:
-        # резервируем две «фиктивные» точки, если их ещё нет
-        for pid in (2147483646, 2147483647):
-            exists = supabase.table("route_points").select("id_point") \
-                     .eq("id_point", pid).execute()
-            if not exists.data:
-                supabase.table("route_points").insert({
-                    "id_point": pid, "route_id": None, "point_type": "route",
-                    "lat": 0.0, "lon": 0.0, "description": "reserved"
-                }).execute()
-
         ip  = geocoder.ip("me").ip or "unknown"
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         res = supabase.table("routes").insert({
-            "name": st.session_state["route_name"].strip(),
+            "name":        st.session_state["route_name"].strip(),
             "description": st.session_state["route_description"].strip(),
-            "user_ip": ip,
-            "created_at": now,
+            "user_ip":     ip,
+            "created_at":  now,
         }).execute()
         if not res.data:
             st.error("Не удалось сохранить маршрут.")
@@ -74,25 +63,28 @@ def save_route() -> None:
                 desc = raw_desc or "Без описания"
 
             ins = supabase.table("route_points").insert({
-                "route_id": route_id,
+                "route_id":   route_id,
                 "point_type": ptype,
-                "lat": pt["coords"][0],
-                "lon": pt["coords"][1],
+                "lat":        pt["coords"][0],
+                "lon":        pt["coords"][1],
                 "description": desc
             }).execute()
             if ins.data:
                 point_ids.append(ins.data[0]["id_point"])
 
+        # сообщение об успехе
         st.markdown(f"""
             <div class="success-message">
                 Маршрут успешно добавлен&nbsp;(ID&nbsp;{route_id})
             </div>
         """, unsafe_allow_html=True)
+
         # очистка временных данных
         st.session_state["free_points"]       = []
         st.session_state["point_description"] = ""
         st.session_state["route_name"]        = ""
         st.session_state["route_description"] = ""
+
     except Exception as e:
         st.error(f"Ошибка при сохранении маршрута: {e}")
 
@@ -359,8 +351,10 @@ if st.session_state["show_modal"]:
         </div>
     """, unsafe_allow_html=True)
 
-    modal_map = folium.Map(location=[55.75, 37.61],
+    modal_map = folium.Map(location=[46.3381433785881, 48.0677175521851],
                            zoom_start=14, width="100%", height=500)
+
+    LocateControl(auto_start=False, flyTo=True, position="bottomright").add_to(modal_map)
 
     # существующие точки
     for i, pt in enumerate(st.session_state["free_points"]):
