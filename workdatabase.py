@@ -15,7 +15,7 @@ def add_training_data():
             "user_ip": "192.168.0.1"
         },
         {
-            "name": "Без описания",
+            "name": "Прогулка по парку",
             "description": "",
             "user_ip": "192.168.0.2"
         },
@@ -34,30 +34,56 @@ def add_training_data():
         print("⚠️ Ошибка при добавлении маршрутов:", str(e))
         exit()
 
+    def format_description(ptype, desc):
+        desc = desc.strip() if desc else ""
+        if ptype == "start":
+            return f"Начало маршрута. {desc}" if desc else "Начало маршрута. Без описания"
+        elif ptype == "final":
+            return f"Конец маршрута. {desc}" if desc else "Конец маршрута. Без описания"
+        return desc or "Без описания"
+
     for idx, route in enumerate(inserted_routes):
         route_id = route["id_route"]
 
         if idx == 0:
-            start = {"route_id": route_id, "point_type": "start", "lat": 55.753930, "lon": 37.620795,
-                     "description": "Начало маршрута на Красной площади"}
-            end = {"route_id": route_id, "point_type": "final", "lat": 55.752023, "lon": 37.617499, "description": ""}
+            start = {
+                "route_id": route_id, "point_type": "start",
+                "lat": 55.753930, "lon": 37.620795,
+                "description": format_description("start", "Начало маршрута на Красной площади")
+            }
+            end = {
+                "route_id": route_id, "point_type": "final",
+                "lat": 55.752023, "lon": 37.617499,
+                "description": format_description("final", "")
+            }
         elif idx == 1:
-            start = {"route_id": route_id, "point_type": "start", "lat": 55.760186, "lon": 37.618711, "description": ""}
-            end = {"route_id": route_id, "point_type": "final", "lat": 55.759001, "lon": 37.621951,
-                   "description": "Финиш у Манежной площади"}
+            start = {
+                "route_id": route_id, "point_type": "start",
+                "lat": 55.760186, "lon": 37.618711,
+                "description": format_description("start", "")
+            }
+            end = {
+                "route_id": route_id, "point_type": "final",
+                "lat": 55.759001, "lon": 37.621951,
+                "description": format_description("final", "Финиш у Манежной площади")
+            }
         else:
-            start = {"route_id": route_id, "point_type": "start", "lat": 55.750226, "lon": 37.627186,
-                     "description": "Вход в парк Зарядье"}
-            end = {"route_id": route_id, "point_type": "final", "lat": 55.748710, "lon": 37.629833, "description": ""}
+            start = {
+                "route_id": route_id, "point_type": "start",
+                "lat": 55.750226, "lon": 37.627186,
+                "description": format_description("start", "Вход в парк Зарядье")
+            }
+            end = {
+                "route_id": route_id, "point_type": "final",
+                "lat": 55.748710, "lon": 37.629833,
+                "description": format_description("final", "")
+            }
 
         try:
-            point_start = supabase.table("route_points").insert(start).execute().data[0]
-            point_end = supabase.table("route_points").insert(end).execute().data[0]
+            supabase.table("route_points").insert(start).execute()
+            supabase.table("route_points").insert(end).execute()
 
-            supabase.table("routes").update({
-                "point_id_start": point_start["id_point"],
-                "point_id_end": point_end["id_point"]
-            }).eq("id_route", route_id).execute()
+            # 🟢 Больше НЕ обновляем point_id_start / point_id_end!
 
             # Добавление промежуточных точек (только в первых 2 маршрутах)
             if idx < 2:
@@ -70,7 +96,7 @@ def add_training_data():
                     lat = lat1 + (lat2 - lat1) * frac
                     lon = lon1 + (lon2 - lon1) * frac
 
-                    desc = ""  # нечётная точка — без описания
+                    desc = ""
                     if i % 2 == 0:
                         desc = f"Описание точки {i}"
 
