@@ -112,7 +112,7 @@ defaults = {
     "route_description": None,
     "point_description": None,
     # свободный режим
-    "free_points":       [],
+    "free_points":       []
 }
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
@@ -122,23 +122,21 @@ with st.container():
     st.markdown('<div style="height:20px"></div>', unsafe_allow_html=True)
     st.markdown('<h3 style="margin:1.5rem 0 .375em 0">🔎 Поиск маршрута</h3>', unsafe_allow_html=True)
 
-    id_col, btn_col = st.columns([5, 1], gap="small")   # поле шире, кнопка уже
+    id_col, col_id, col_word = st.columns([2, 1, 1], gap="small")
 
     with id_col:
         st.text_input(
             "route_id_input",
-            placeholder="Введите ID маршрута",
+            placeholder="Введите ID маршрута или ключевое слово",
             label_visibility="collapsed",
             key="route_id"
         )
 
-    with btn_col:
-        find_clicked = st.button(
-            "Найти",
-            key="find_route",
-            type="primary",
-            use_container_width=True
-        )
+    with col_id:
+        find_by_id = st.button("Найти по ID", key="find_by_id", type="primary")
+
+    with col_word:
+        find_by_word = st.button("Найти по слову", key="find_by_word", type="primary")
 
     # убираем промежуток между колонками — «слипаем» поле и кнопку
     st.markdown(
@@ -155,20 +153,21 @@ with st.container():
     m = folium.Map(location=[0, 0], zoom_start=2, width="100%", height=500)
 
     # ── Поиск маршрута ────────────────────────────────────
-    if find_clicked:
-        rid = st.session_state.get("route_id")
-        st.session_state["found_valid_route"] = False
+    rid = st.session_state.get("route_id", "").strip()
+    st.session_state["found_valid_route"] = False
+
+    if find_by_id:
         if rid:
             try:
                 rid_int = int(rid)
-                res     = supabase.table("routes").select("*") \
-                          .eq("id_route", rid_int).execute()
+                res = supabase.table("routes").select("*") \
+                    .eq("id_route", rid_int).execute()
                 if res.data:
                     route = res.data[0]
                     st.session_state.update({
                         "found_valid_route": True,
-                        "last_route_id":     rid_int,
-                        "route_name":        route.get("name") or "Без названия",
+                        "last_route_id": rid_int,
+                        "route_name": route.get("name") or "Без названия",
                         "route_description": route.get("description") or "Без описания",
                     })
 
@@ -202,14 +201,14 @@ with st.container():
 
                     # промежуточные точки
                     all_pts = supabase.table("route_points").select("*") \
-                              .eq("route_id", rid_int).eq("point_type", "route").execute().data
+                        .eq("route_id", rid_int).eq("point_type", "route").execute().data
                     for pt in all_pts:
                         desc = pt.get("description", "").strip() or "Без описания"
                         desc = desc[:100]
                         folium.CircleMarker([pt["lat"], pt["lon"]],
                                             radius=5, color="green", fill=True,
                                             fill_opacity=.9, tooltip=desc) \
-                              .add_to(m)
+                            .add_to(m)
                 else:
                     with id_col:
                         st.markdown("""
@@ -260,6 +259,42 @@ with st.container():
                 </div>
                 """, unsafe_allow_html=True)
 
+    elif find_by_word:
+        if rid:
+            # всё приводим к ВЕРХНЕМУ регистру
+            search_word = rid.upper()
+
+            # ищем совпадение либо в name, либо в description
+            # (ILIKE – регистронезависимый, но делаем upper() «для верности»)
+            res = supabase.table("routes") \
+                .select("id_route, name, description") \
+                .or_(f"name.ilike.*{search_word}*,description.ilike.*{search_word}*") \
+                .execute()
+
+            # кладём результат в session_state, чтобы отрисовать блок ниже
+            st.session_state["keyword_results"] = {
+                "word": search_word,
+                "routes": res.data or []
+            }
+        else:
+            # если поле было пустым – всё по-старому
+            with id_col:
+                st.markdown("""
+                <div style="
+                    color:#f9c74f;
+                    background:#3b3b1b;
+                    padding:0.5rem 1rem;
+                    border-radius:8px;
+                    width:fit-content;
+                    font-size:1rem;
+                    margin:6px 0;
+                ">
+                Введите клюечвое слово
+                </div>
+                """, unsafe_allow_html=True)
+            # стираем предыдущие результаты, если были
+            st.session_state.pop("keyword_results", None)
+
     # ── Инфо о маршруте ──────────────────────────────────
     if st.session_state["found_valid_route"]:
         st.markdown(f"**Название маршрута:** {st.session_state['route_name']}")
@@ -287,6 +322,8 @@ with st.container():
                 if abs(pt["lat"]-clat) < .0001 and abs(pt["lon"]-clon) < .0001:
                     st.session_state["point_description"] = pt.get("description", "").strip() or "Без описания"
                     break
+
+# ── Блок «Маршруты по ключевому слову …» ────────────────────────────────────────
 
 # ── Кнопки под картой ─────────────────────────────────────
 sp_l, col_create, sp_c, col_my, sp_r, col_complain, sp_r2 = \
@@ -464,7 +501,20 @@ if st.session_state.get("show_my_routes"):
         routes = response.data
 
         if not routes:
-            st.info("У вас пока нет сохранённых маршрутов")
+            st.markdown("""
+            <div style="
+                color: #cfe5f3;
+                background-color: #3A3AEB;
+                padding: 0.5rem 1rem;
+                border-radius: 8px;
+                width: fit-content;
+                white-space: nowrap;
+                font-size: 1rem;
+                margin: 6px 0;
+            ">
+            У вас нет сохранённых маршрутов
+            </div>
+            """, unsafe_allow_html=True)
         else:
             st.session_state.setdefault("deleted_route_ids", set())
 
@@ -520,6 +570,60 @@ if st.session_state.get("show_my_routes"):
 
     except Exception as e:
         st.error(f"Ошибка при загрузке маршрутов: {e}")
+
+
+
+# ── Блок «Маршруты по ключевому слову …» ────────────────────────────────────────
+if st.session_state.get("keyword_results") is not None:
+    kw_data = st.session_state["keyword_results"]
+    kw      = kw_data["word"]          # слово, которым искали (уже верхний регистр)
+    routes  = kw_data["routes"]
+
+    st.markdown(f"""
+        <div style="margin-top:2.5rem;
+                    font-size:1.8rem;
+                    font-weight:700;
+                    margin-bottom:0.5rem;">
+            🔍 Маршруты по ключевому слову "{kw}"
+        </div>
+    """, unsafe_allow_html=True)
+
+    if not routes:
+        st.markdown("""
+        <div style="
+        color: #cfe5f3;
+        background-color: #3A3AEB;
+            padding:0.5rem 1rem;
+            border-radius:8px;
+            width:fit-content;
+            white-space:nowrap;
+            font-size:1rem;
+            margin:6px 0;
+        ">
+        Совпадений не найдено
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        for r in routes:
+            with st.container():
+                st.markdown(f"""
+                    <div style="color:#fff; margin-bottom:0.25rem;">
+                        Название маршрута: {r['name']}
+                    </div>
+                    <div style="color:#fff; margin-bottom:0.25rem;">
+                        Описание маршрута: {r['description'] or "без описания"}
+                    </div>
+                    <div style="color:#fff; margin-bottom:0.75rem;">
+                        ID маршрута: {r['id_route']}
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # белая разделительная полоса
+                st.markdown("""
+                    <div style="border-bottom:1px solid white;
+                                margin:0.5rem 0 1.25rem 0;"></div>
+                """, unsafe_allow_html=True)
+
 
 # ── CSS (общее + модалки) ─────────────────────────────────
 st.markdown(r"""
@@ -595,6 +699,17 @@ div.success-message {
     white-space: nowrap;
     font-size: 1rem;
     margin: 3px 0 4px 0;
+}
+
+div[data-testid="stTextInput"] {
+    max-width: 325px !important; /* было 700px */
+    width: 325px !important;
+}
+div[data-testid="stHorizontalBlock"] > div:nth-child(2){
+    margin-left:15px!important;
+}
+div[data-testid="stHorizontalBlock"] > div:nth-child(3){
+    margin-left:-10px!important;
 }
 </style>
 """, unsafe_allow_html=True)
