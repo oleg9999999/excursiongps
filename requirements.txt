@@ -5,4 +5,4 @@ streamlit-folium
 supabase
 branca
 datetime
-streamlit-javascript>=0.1.5
+ipaddress
