@@ -235,7 +235,8 @@ with col_create:
         })
 
 with col_my:
-    st.button("Мои маршруты", key="btn_my", type="secondary")
+    if st.button("Мои маршруты", key="btn_my", type="secondary"):
+        st.session_state["show_my_routes"] = True
 
 with col_complain:
     if st.button("Пожаловаться", key="btn_complain", type="secondary",
@@ -326,6 +327,39 @@ if st.session_state.get("show_complain") and st.session_state.get("last_route_id
     with cr:
         if st.button("Закрыть", key="cancel_complaint"):
             st.session_state["show_complain"] = False
+
+# ── Секция «Мои маршруты» ─────────────────────────────────
+if st.session_state.get("show_my_routes"):                 # ⇽⇽ NEW
+    st.markdown("""
+    <div style="font-size:1.8rem; font-weight:700; margin-bottom:0.5rem;">
+    📍 Мои маршруты
+    </div>
+    """, unsafe_allow_html=True)
+
+    try:
+        ip = geocoder.ip("me").ip or "unknown"
+        response = supabase.table("routes").select("id_route, name") \
+                   .eq("user_ip", ip).order("created_at", desc=True).execute()
+        routes = response.data
+
+        if not routes:
+            st.info("У вас пока нет сохранённых маршрутов")
+        else:
+            for route in routes:
+                st.markdown(f"""
+                    <div style="border-bottom:1px solid white; padding:0.5rem 0;">
+                        <div style="font-weight:600;">
+                            Название маршрута: {route['name']}
+                        </div>
+                        <div style="opacity:0.8;">
+                            ID маршрута: {route['id_route']}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"Ошибка при загрузке маршрутов: {e}")
+
+# ── CSS (общее + модалки) ─────────────────────────────────
 
 # ── CSS (общее + модалки) ─────────────────────────────────
 st.markdown(r"""
