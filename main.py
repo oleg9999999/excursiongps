@@ -628,7 +628,7 @@ if st.session_state.get("keyword_results") is not None:
 # ── CSS (общее + модалки) ─────────────────────────────────
 st.markdown(r"""
 <style>
-/* Buttons (и в основной части, и в модалках) */
+/* ─────────── Кнопки ─────────── */
 button[kind="primary"],
 button[kind="secondary"],
 button[kind="primary"]:disabled,
@@ -646,7 +646,7 @@ div.stButton > button{
 }
 div.stButton > button:disabled{opacity:.5;cursor:not-allowed}
 
-/* карты */
+/* ─────────── Карты ─────────── */
 iframe[title="streamlit_folium.st_folium"]{
     height:500px!important;min-height:500px!important;
     margin-bottom:0!important;display:block;
@@ -655,61 +655,59 @@ div[data-testid="stVerticalBlock"]>div:has(iframe){
     padding:0!important;background:none!important;
 }
 
-/* input / textarea в модалке */
+/* ─────────── Размеры input / textarea ─────────── */
+/* (1) Узкое поле поиска (первый столбец в горизонтальном блоке) */
+div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stTextInput"]{
+    max-width:325px !important;
+    width:325px !important;
+}
+
+/* (2) Все остальные text_input + text_area — 700 px */
 div[data-testid="stTextInput"],
-div[data-testid="stTextArea"] {
-    max-width: 700px !important;
-    width: 700px !important;
-    margin-bottom: 0.25rem !important; /* уменьшено ещё сильнее */
+div[data-testid="stTextArea"]{
+    max-width:700px !important;
+    width:700px !important;
 }
 
+/* (3) Внутренние <input>/<textarea> растягиваем на всю ширину контейнера */
 div[data-testid="stTextInput"] input,
-div[data-testid="stTextArea"] textarea {
-    width: 100% !important;
-    padding: 0.5rem 0.75rem !important;
-    font-size: 1rem !important;
-    line-height: 1.5rem !important;
-    box-sizing: border-box !important;
+div[data-testid="stTextArea"] textarea{
+    width:100% !important;
+    padding:0.5rem 0.75rem !important;
+    font-size:1rem !important;
+    line-height:1.5rem !important;
+    box-sizing:border-box !important;
 }
 
-/* колонка с кнопками в модалке */
-/* удаляем фиксированную ширину колонок */
-div[data-testid="column"] {
+/* ─────────── Колонки с кнопками в модалке ─────────── */
+div[data-testid="column"]{
     width:auto!important;
     min-width:auto!important;
 }
 
-/* Ctrl+Enter hint */
+/* ─────────── Прочее ─────────── */
 div[style*="Ctrl+Enter"]{display:none!important}
 
-/* layout */
-.block-container {
-    padding:4rem 2rem 1rem 2rem; /* сверху 4rem, снизу 1rem */
+.block-container{
+    padding:4rem 2rem 1rem 2rem;      /* сверху 4rem, снизу 1rem */
     max-width:800px;
     margin:auto;
 }
 h1 a,h2 a,h3 a{display:none!important}
 
-div.success-message {
-    color: #90ee90;
-    background: #1c3b2f;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    width: fit-content;
-    white-space: nowrap;
-    font-size: 1rem;
-    margin: 3px 0 4px 0;
+div.success-message{
+    color:#90ee90;
+    background:#1c3b2f;
+    padding:0.5rem 1rem;
+    border-radius:8px;
+    width:fit-content;
+    white-space:nowrap;
+    font-size:1rem;
+    margin:3px 0 4px 0;
 }
 
-div[data-testid="stTextInput"] {
-    max-width: 325px !important; /* было 700px */
-    width: 325px !important;
-}
-div[data-testid="stHorizontalBlock"] > div:nth-child(2){
-    margin-left:15px!important;
-}
-div[data-testid="stHorizontalBlock"] > div:nth-child(3){
-    margin-left:-10px!important;
-}
+/* лёгкий сдвиг двух кнопок «Найти» вправо */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2){margin-left:15px!important;}
+div[data-testid="stHorizontalBlock"] > div:nth-child(3){margin-left:-10px!important;}
 </style>
 """, unsafe_allow_html=True)
